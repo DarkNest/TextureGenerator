@@ -17,7 +17,7 @@ Create
 **defualt generator path: TextureGenerator/Editor/Generators/${GeneratorClassName}/**  
 
 ### 2. Coding
-When you create a new generator, coding your C# script and computer shader  
+After you create a new generator, coding your C# script and computer shader  
 ![图片](https://user-images.githubusercontent.com/36032901/126906764-66db7b6b-6cfa-4b68-b2c3-f847edc74b77.png)  
 ![图片](https://user-images.githubusercontent.com/36032901/126906778-262fd195-e860-4e5e-b1a9-954ee3aa2562.png)  
 
