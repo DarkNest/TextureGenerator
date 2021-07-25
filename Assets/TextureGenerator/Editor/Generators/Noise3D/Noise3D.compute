@@ -1,0 +1,119 @@
+#pragma kernel CSMain
+
+RWTexture3D<float4> Result;
+StructuredBuffer<float3> _Points;
+
+int _CellPerAxis;
+float _CellSize;
+int _Axis;
+float _Bright;
+float _MaxEffectDis;
+bool _Filp;
+
+//FBM
+bool _FBM;
+int _Octaves;
+float _Frequency;
+float _Lacunarity;
+float _Amplitude;
+float _Gain;
+
+void Debug(uint3 id)
+{
+    Result[id.xyz] = float4(0, 0, 0, 1);
+    for(int i = 0; i < _CellPerAxis; i++)
+    {
+        for(int j = 0; j < _CellPerAxis; j++)
+        {
+            for(int k = 0; k < _CellPerAxis; k++)
+            {
+                float3 p = _Points[i + j * _CellPerAxis + k * _CellPerAxis * _CellPerAxis] - id.xyz;
+                float dis = dot(p,p);
+                if (dis < 100)
+                {
+                    Result[id.xyz] = float4(1, 1, 1, 1);
+                    return;
+                }
+            }
+        }
+    }
+}
+
+float TakeNoise(uint3 id)
+{
+    id = id % _Axis;
+    int3 regPoint = id.xyz / _CellSize;
+    float minDis = 1;
+    for(int i = -1; i <= 1; i++)
+    {
+        for(int j = -1; j <= 1; j++)
+        {
+            for(int k = -1; k <= 1; k++)
+            {
+                int x = regPoint.x + i;
+                int y = regPoint.y + j;
+                int z = regPoint.z + k;
+                
+                float3 off = float3(0, 0, 0);
+                if (x < 0)
+                {
+                    x = _CellPerAxis - 1;
+                    off.x = -_Axis;
+                }else if (x > _CellPerAxis - 1)
+                {
+                    x = 0;
+                    off.x = _Axis;
+                }
+                if (y < 0)
+                {
+                    y = _CellPerAxis - 1;
+                    off.y = -_Axis;
+                }else if (y > _CellPerAxis - 1)
+                {
+                    y = 0;
+                    off.y = _Axis;
+                }
+                if (z < 0)
+                {
+                    z = _CellPerAxis - 1;
+                    off.z = -_Axis;
+                }else if (z > _CellPerAxis - 1)
+                {
+                    z = 0;
+                    off.z = _Axis;
+                }
+                float3 p = _Points[x + y * _CellPerAxis + z * _CellPerAxis * _CellPerAxis].xyz + off - id.xyz;                
+                minDis = min(minDis, min( 1, dot(p,p)/_MaxEffectDis));
+            }
+        }       
+    }
+    float value = sqrt(1 - minDis);
+    return value;
+}
+
+float FBMSample(int3 id)
+{
+    float value;
+    for (int i = 0; i < _Octaves; i++) {
+	    value += _Amplitude * TakeNoise( _Frequency * id);
+	    _Frequency *= _Lacunarity;
+	    _Amplitude *= _Gain;
+    }
+    return value;
+}
+
+[numthreads(8,8,8)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    float value;
+
+    if (_FBM)
+        value = FBMSample(id);
+    else
+        value = TakeNoise(id);
+    
+    if (_Filp)
+        value = 1 - value;
+    Result[id.xyz] = float4(value, value, value, 1) * _Bright;
+    //Debug(id);
+}
