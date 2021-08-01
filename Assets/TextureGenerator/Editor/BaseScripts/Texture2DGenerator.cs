@@ -1,10 +1,13 @@
 ﻿using UnityEngine;
 using UnityEditor;
+using System.IO;
 
 namespace TextureGenerator
 {
     public abstract class Texture2DGenerator : Generator
     {
+        public bool savePNG = true;
+
         public sealed override void UpdateRenderTexture()
         {
             if (resultTexture == null || resultTexture.width != axis)
@@ -18,8 +21,7 @@ namespace TextureGenerator
         public sealed override void DoSaveAsset()
         {
             if (resultTexture == null)
-                return;
-            string targetPath = "Assets/TextureGenerator/Output";            
+                return;       
             string assetName = OutputName;
             if (string.IsNullOrEmpty(assetName))
             {
@@ -27,8 +29,33 @@ namespace TextureGenerator
                 return;
             }
             Texture2D output = ConverTexture2D(resultTexture);
-            string assetPath = targetPath + "/" + assetName + ".asset";
-            AssetDatabase.CreateAsset(output, assetPath);
+            if (savePNG)
+                SavePNG(output);
+            else
+                SaveAsset(output);
+            
+            AssetDatabase.Refresh();
+        }
+
+        void SavePNG(Texture2D tex)
+        {
+            string assetName = OutputName;
+            string assetPath = GeneratorSettings.TGOutputFullPath + "/" + assetName + ".png";
+            byte[] data = tex.EncodeToPNG();
+            using (FileStream file = File.Open(assetPath, FileMode.Create))
+            using (BinaryWriter writer = new BinaryWriter(file))
+            {
+                writer.Write(data);
+                file.Close();
+            }
+            Debug.Log("Save Finish：" + assetPath);
+        }
+
+        void SaveAsset(Texture2D tex)
+        {
+            string assetName = OutputName;
+            string assetPath = GeneratorSettings.TGOutputPath + "/" + assetName + ".asset";
+            AssetDatabase.CreateAsset(tex, assetPath);
             AssetDatabase.Refresh();
             Debug.Log("Save Finish：" + assetPath);
         }

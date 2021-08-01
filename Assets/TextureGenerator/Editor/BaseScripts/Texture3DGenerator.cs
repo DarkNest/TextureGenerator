@@ -34,7 +34,7 @@ namespace TextureGenerator
                 Debug.LogWarning("Create texture failed, Check asset Name");
                 return;
             }
-            Texture3D output = ConverToTex3D(resultTexture);
+            Texture3D output = ConverToTex3D(resultTexture);            
             string assetPath = targetPath + "/" + assetName + ".asset";
             AssetDatabase.CreateAsset(output, assetPath);
             AssetDatabase.Refresh();

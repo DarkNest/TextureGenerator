@@ -20,10 +20,10 @@ MonoBehaviour:
     y: 8
     z: 8
   sliceShader: {fileID: 7200000, guid: 820ad40fb5909da448299ccad3f35560, type: 3}
-  cellPerAxis: 6
+  cellPerAxis: 9
   bright: 1
   maxEffectDis: 500
-  filp: 0
+  filp: 1
   FBM: 0
   octaves: 1
   frequency: 1

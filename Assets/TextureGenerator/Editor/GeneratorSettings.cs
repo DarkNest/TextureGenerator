@@ -89,5 +89,21 @@ namespace TextureGenerator
                 return TGLoadRootPath + "/" + generatorPaht;
             }
         }
+
+        public static string TGOutputPath
+        {
+            get
+            {
+                return "Assets/" + TGDirPath + "/Output";
+            }
+        }
+
+        public static string TGOutputFullPath
+        {
+            get
+            {                
+                return Application.dataPath + "/" + TGDirPath + "/Output";
+            }
+        }
     }
 }
