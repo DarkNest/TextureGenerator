@@ -1,0 +1,35 @@
+#pragma kernel CSMain
+
+//Params
+RWTexture2D<float4> Result;
+StructuredBuffer<float> _PointVals;
+int _axis;
+int _GridNum;
+
+
+float GetPointValue(uint2 p)
+{
+    return _PointVals[p.x + p.y * _GridNum];
+}
+
+float4 TakeSampleValue(uint3 id)
+{        
+    float gridSize = _axis / (float) _GridNum;
+    uint2 regIndex = id.xy / gridSize;
+    float v1 = GetPointValue(regIndex);
+    float v2 = GetPointValue(regIndex + uint2(1, 0));
+    float v3 = GetPointValue(regIndex + uint2(0, 1));
+    float v4 = GetPointValue(regIndex + uint2(1, 1));
+    float2 pos = id.xy/gridSize - regIndex;
+    //Same as Hermite Curve£º pos = smoothstep(float2(0,0), float2(1,1), pos);
+    pos = pos * pos * (3 - 2 * pos);    
+    float v= lerp( lerp(v1,v3,pos.y), lerp(v2,v4,pos.y), pos.x);
+    return float4(v, v, v, 1);
+}
+
+[numthreads(8,8,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{    
+    float4 value = TakeSampleValue(id);
+    Result[id.xy] = value;
+}
