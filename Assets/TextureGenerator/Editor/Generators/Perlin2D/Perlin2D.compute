@@ -2,18 +2,30 @@
 
 //Params
 RWTexture2D<float4> Result;
-StructuredBuffer<float> _PointVals;
+
 int _axis;
 int _GridNum;
+float2 _RandomSeed;
 
+//FBM
+bool _FBM;
+int _Octaves;
+float _Frequency;
+float _Lacunarity;
+float _Amplitude;
+float _Gain;
+
+float random (uint2 id) {
+    return frac(sin(dot(float2(id.x * _RandomSeed.x, id.y * _RandomSeed.y), float2(2.718281, 3.1415926)))*89101.234567);
+}
 
 float GetPointValue(uint2 p)
 {
-    return _PointVals[p.x + p.y * _GridNum];
+    return random(p);
 }
 
-float4 TakeSampleValue(uint3 id)
-{        
+float TakeSampleValue(uint3 id)
+{
     float gridSize = _axis / (float) _GridNum;
     uint2 regIndex = id.xy / gridSize;
     float v1 = GetPointValue(regIndex);
@@ -23,13 +35,27 @@ float4 TakeSampleValue(uint3 id)
     float2 pos = id.xy/gridSize - regIndex;
     //Same as Hermite Curve£º pos = smoothstep(float2(0,0), float2(1,1), pos);
     pos = pos * pos * (3 - 2 * pos);    
-    float v= lerp( lerp(v1,v3,pos.y), lerp(v2,v4,pos.y), pos.x);
-    return float4(v, v, v, 1);
+    return lerp( lerp(v1,v3,pos.y), lerp(v2,v4,pos.y), pos.x);;
+}
+
+float FBMSample(int3 id)
+{
+    float value = 0;
+    for (int i = 0; i < _Octaves; i++) {
+	    value += _Amplitude * TakeSampleValue( _Frequency * id);
+	    _Frequency *= _Lacunarity;
+	    _Amplitude *= _Gain;
+    }
+    return value;
 }
 
 [numthreads(8,8,1)]
 void CSMain (uint3 id : SV_DispatchThreadID)
 {    
-    float4 value = TakeSampleValue(id);
-    Result[id.xy] = value;
+    float value = 0;
+    if (_FBM)
+        value = FBMSample(id);
+    else
+        value = TakeSampleValue(id);
+    Result[id.xy] = float4( value, value, value, 1);
 }

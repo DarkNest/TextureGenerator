@@ -7,7 +7,16 @@ public class Perlin2D : Texture2DGenerator
     [Range(1, 100), HideInInspector]
     private int gridNum = 5;
 
-    private ComputeBuffer valueBuffer;
+    private Vector2 randomSeed = Vector2.zero;
+
+    //////////////FBM
+    public bool FBM = false;
+    [Range(1, 10)]
+    public int octaves = 1;
+    public float frequency = 1.0f;
+    public float lacunarity = 2.0f;
+    public float amplitude = 0.5f;
+    public float gain = 0.5f;
 
     public int GridNum
     {
@@ -19,28 +28,13 @@ public class Perlin2D : Texture2DGenerator
         {
             if (value <= 0)
                 value = 1;
-            if (value > axis / 2)
-                value = axis / 2;
-            if (value != gridNum && gridNum > 0)
-            {
-                InitBufferData();
-            }
             gridNum = value;
-        }
-    }
-
-    private int bufferCount
-    {
-        get
-        {
-            int num = gridNum + 1;
-            return num * num;
         }
     }
 
     public override void InitData()
     {
-        InitBufferData();
+        RefreshData();
     }
 
     public override void DoRenderTexture()
@@ -48,52 +42,20 @@ public class Perlin2D : Texture2DGenerator
         int kenerl = computeShader.FindKernel(kernelName);
         computeShader.SetTexture(kenerl, "Result", resultTexture);
         computeShader.SetInt("_axis", axis);
-        computeShader.SetBuffer(kenerl, "_PointVals", valueBuffer);
         computeShader.SetInt("_GridNum", GridNum);
+        computeShader.SetVector("_RandomSeed", randomSeed);
+        computeShader.SetBool("_FBM", FBM);
+        computeShader.SetInt("_Octaves", octaves);
+        computeShader.SetFloat("_Frequency", frequency);
+        computeShader.SetFloat("_Lacunarity", lacunarity);
+        computeShader.SetFloat("_Amplitude", amplitude);
+        computeShader.SetFloat("_Gain", gain);
         computeShader.Dispatch(kenerl, axis/threadNum.x, axis/threadNum.y, axis/threadNum.z);        
     }
 
-    private void InitBufferData()
+    public void RefreshData()
     {
-        int count = bufferCount;
-        if(valueBuffer == null)
-        {            
-            valueBuffer = new ComputeBuffer(count, sizeof(float));
-        }
-        else if(valueBuffer.count != count)
-        {
-            valueBuffer.Release();
-            valueBuffer = null;
-            valueBuffer = new ComputeBuffer(count, sizeof(float));
-        }
-        
-        float[] values = GetPointsValue();
-        valueBuffer.SetData(values);
-    }
-
-    private float[] GetPointsValue()
-    {
-        float[] ret = new float[bufferCount];
-        for(int i = 0; i < ret.Length; i++)
-        {
-            ret[i] = Random.value;
-        }
-        return ret;
-    }
-
-    public void Refresh()
-    {
-        InitBufferData();
-    }
-
-    public override void Dispose()
-    {
-        base.Dispose();
-        if (valueBuffer != null)
-        {
-            valueBuffer.Release();
-            valueBuffer = null;
-        }
+        randomSeed = new Vector2(Random.value, Random.value);
     }
 }
 
@@ -105,11 +67,9 @@ class Perlin2DEditor : Texture2DGeneratorEditor
         base.OnInspectorGUI();
         Perlin2D gen = target as Perlin2D;
         gen.GridNum = EditorGUILayout.IntField("Grid Num", gen.GridNum);
-
-        if ( GUILayout.Button("Refresh"))
+        if (GUILayout.Button("Refresh"))
         {
-            gen.Refresh();
-            gen.DoRenderTexture();
+            gen.RefreshData();
         }
     }
 }
