@@ -87,8 +87,7 @@ float TakeNoise(uint3 id)
             }
         }       
     }
-    float value = sqrt(1 - minDis);
-    return value;
+    return sqrt(minDis);
 }
 
 float FBMSample(int3 id)
