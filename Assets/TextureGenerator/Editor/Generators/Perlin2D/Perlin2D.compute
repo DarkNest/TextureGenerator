@@ -3,9 +3,12 @@
 //Params
 RWTexture2D<float4> Result;
 
-int _axis;
+float _axis;
 int _GridNum;
-float2 _RandomSeed;
+float _GridSize;
+float4 _RandomSeed;
+
+bool _IsCicle;
 
 //FBM
 bool _FBM;
@@ -15,47 +18,134 @@ float _Lacunarity;
 float _Amplitude;
 float _Gain;
 
-float random (uint2 id) {
-    return frac(sin(dot(float2(id.x * _RandomSeed.x, id.y * _RandomSeed.y), float2(2.718281, 3.1415926)))*89101.234567);
-}
+////define
+float FBMSample2D(int3 id);
+float random4D(uint4 id);
+float GetLerpValue(uint4 regPoint,float4 pos, uint w);
+float TakeSampleValue4D(uint4 id);
+float random2D (uint2 id);
+float TakeSampleValue2D(uint3 id);
 
-float GetPointValue(uint2 p)
-{
-    return random(p);
-}
-
-float TakeSampleValue(uint3 id)
-{
-    float gridSize = _axis / (float) _GridNum;
-    uint2 regIndex = id.xy / gridSize;
-    float v1 = GetPointValue(regIndex);
-    float v2 = GetPointValue(regIndex + uint2(1, 0));
-    float v3 = GetPointValue(regIndex + uint2(0, 1));
-    float v4 = GetPointValue(regIndex + uint2(1, 1));
-    float2 pos = id.xy/gridSize - regIndex;
-    //Same as Hermite Curve£º pos = smoothstep(float2(0,0), float2(1,1), pos);
-    pos = pos * pos * (3 - 2 * pos);    
-    return lerp( lerp(v1,v3,pos.y), lerp(v2,v4,pos.y), pos.x);;
-}
-
-float FBMSample(int3 id)
+float FBMSample2D(int3 id)
 {
     float value = 0;
     for (int i = 0; i < _Octaves; i++) {
-	    value += _Amplitude * TakeSampleValue( _Frequency * id);
+	    value += _Amplitude * TakeSampleValue2D( _Frequency * id);
 	    _Frequency *= _Lacunarity;
 	    _Amplitude *= _Gain;
     }
     return value;
 }
 
+float FBMSample4D(float4 id)
+{
+    float value = 0;
+    for (int i = 0; i < _Octaves; i++) {
+	    value += _Amplitude * TakeSampleValue4D( _Frequency * id);
+	    _Frequency *= _Lacunarity;
+	    _Amplitude *= _Gain;
+    }
+    return value;
+}
+
+//////////////////////////////////////////Perlin 4D
+float random4D(uint4 id)
+{
+    return frac(sin(dot(float4(id.x * _RandomSeed.x, id.y * _RandomSeed.y, id.z * _RandomSeed.z, id.w * _RandomSeed.w), 
+                    float4(2.718281, 3.1415926, 1.165131, 1.8346574))) * 89101.234567);
+}
+
+float GetLerpValue(uint4 regPoint,float4 pos, uint w)
+{
+    float v1 = random4D(regPoint + uint4(0, 0, 0, w));
+    float v2 = random4D(regPoint + uint4(1, 0, 0, w));
+
+    float v3 = random4D(regPoint + uint4(0, 1, 0, w));
+    float v4 = random4D(regPoint + uint4(1, 1, 0, w));
+
+    float v5 = random4D(regPoint + uint4(0, 0, 1, w));
+    float v6 = random4D(regPoint + uint4(1, 0, 1, w));
+
+    float v7 = random4D(regPoint + uint4(0, 1, 1, w));
+    float v8 = random4D(regPoint + uint4(1, 1, 1, w));
+
+    float v_x1 = lerp(v1, v2, pos.x);
+    float v_x2 = lerp(v3, v4, pos.x);
+
+    float v_x3 = lerp(v5, v6, pos.x);
+    float v_x4 = lerp(v7, v8, pos.x);
+
+    return lerp( lerp(v_x1,v_x2,pos.y), lerp(v_x3,v_x4,pos.y), pos.z);
+}
+
+float TakeSampleValue4D(uint4 id)
+{
+    float4 position = id / _GridSize;
+    uint4 regIndex = floor(position);
+    float4 pos = frac(position);
+    pos = pos * pos * (3 - 2 * pos);
+
+    float v1 = GetLerpValue(regIndex, pos, 0);
+    float v2 = GetLerpValue(regIndex, pos, 1);
+
+    return lerp(v1, v2, pos.w);
+}
+
+//////////////////////////////////////////Perlin 2D
+
+float random2D (uint2 id) 
+{
+    return frac(sin(dot(float2(id.x * _RandomSeed.x, id.y * _RandomSeed.y), float2(2.718281, 3.1415926)))*89101.234567);
+}
+
+float TakeSampleValue2D(uint3 id)
+{
+    float2 position = id.xy / _GridSize;
+    uint2 regIndex = floor(position);
+    float2 pos = frac(position);
+    pos = pos * pos * (3 - 2 * pos);  
+
+    float v1 = random2D(regIndex);
+    float v2 = random2D(regIndex + uint2(1, 0));
+    float v3 = random2D(regIndex + uint2(0, 1));
+    float v4 = random2D(regIndex + uint2(1, 1));
+    //Same as Hermite Curve£º pos = smoothstep(float2(0,0), float2(1,1), pos);
+  
+    return lerp( lerp(v1,v3,pos.y), lerp(v2,v4,pos.y), pos.x);
+}
+
+//////////////////////////////////////////Sample
+
+float TakeSampleValue(uint3 id)
+{
+    if(_IsCicle)
+    {
+        float PI = 3.1415926 * 2;
+        float4 pos;
+        float2 normalPos = id.xy/_axis;
+        pos.x = cos(PI * normalPos.x);
+        pos.y = cos(PI * normalPos.y);
+        pos.z = sin(PI * normalPos.x);
+        pos.w = sin(PI * normalPos.y);
+        pos = (pos + 1)/2 * _axis;
+        if(_FBM)
+            return FBMSample4D(pos);
+        else
+            return TakeSampleValue4D(pos);        
+    }
+    else
+    {
+        if(_FBM)
+            return FBMSample2D(id);
+        else
+            return TakeSampleValue2D(id);
+    }
+}
+
 [numthreads(8,8,1)]
 void CSMain (uint3 id : SV_DispatchThreadID)
 {    
     float value = 0;
-    if (_FBM)
-        value = FBMSample(id);
-    else
-        value = TakeSampleValue(id);
+    value = TakeSampleValue(id);
     Result[id.xy] = float4( value, value, value, 1);
 }

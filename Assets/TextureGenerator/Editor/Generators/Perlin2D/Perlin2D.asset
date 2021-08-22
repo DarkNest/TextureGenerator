@@ -20,3 +20,10 @@ MonoBehaviour:
     y: 8
     z: 1
   savePNG: 1
+  isCicle: 1
+  FBM: 0
+  octaves: 6
+  frequency: 2
+  lacunarity: 2
+  amplitude: 0.5
+  gain: 0.5
